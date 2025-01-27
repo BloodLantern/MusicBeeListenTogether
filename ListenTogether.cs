@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 using EmbedIO;
 using EmbedIO.Actions;
-using EmbedIO.Files;
-using EmbedIO.Routing;
 using EmbedIO.WebApi;
 using Swan.Logging;
 
@@ -13,54 +10,23 @@ namespace MusicBeePlugin
 {
     public partial class Plugin
     {
+        private static Plugin instance;
+
         private MusicBeeApiInterface mbApiInterface;
         private PluginInfo about = new PluginInfo();
 
-        private WebServer server;
-
-        private void SetupServer()
-        {
-            string url = "http://localhost:9696/";
-
-            // Our web server is disposable.
-            server = CreateWebServer(url);
-
-            // Once we've registered our modules and configured them, we call the RunAsync() method.
-            server.RunAsync();
-        }
-
-        private void StopServer()
-        {
-            server.Dispose();
-        }
-
-        // Create and configure our web server.
-        private WebServer CreateWebServer(string url)
-        {
-            WebServer server = new WebServer(o => o
-                    .WithUrlPrefix(url)
-                    .WithMode(HttpListenerMode.EmbedIO))
-                // First, we will configure our web server by adding Modules.
-                .WithLocalSessionManager()
-                .WithWebApi("/musicbee", m => m.WithController<MusicBeeController>())
-                //.WithModule(new WebSocketChatModule("/chat"))
-                //.WithModule(new WebSocketTerminalModule("/terminal"))
-                .WithModule(new ActionModule("/", HttpVerbs.Any, ctx => ctx.SendDataAsync(new { Message = "Error" })));
-
-            // Listen for state changes.
-            server.StateChanged += (s, e) => $"WebServer New State - {e.NewState}".Info();
-
-            return server;
-        }
+        private ListenTogetherServer server;
 
         public PluginInfo Initialise(IntPtr apiInterfacePtr)
         {
+            instance = this;
+
             mbApiInterface = new MusicBeeApiInterface();
             mbApiInterface.Initialise(apiInterfacePtr);
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "MusicBee Listen Together";
             about.Description = "A brief description of what this plugin does";
-            about.Author = "Author";
+            about.Author = "BloodLantern, YohannDR";
             about.TargetApplication = "";   //  the name of a Plugin Storage device or panel header for a dockable panel
             about.Type = PluginType.General;
             about.VersionMajor = 1;  // your plugin version
@@ -105,7 +71,7 @@ namespace MusicBeePlugin
         // MusicBee is closing the plugin (plugin is being disabled by user or MusicBee is shutting down)
         public void Close(PluginCloseReason reason)
         {
-            StopServer();
+            server.StopServer();
         }
 
         // uninstall this plugin - clean up any persisted files
@@ -122,16 +88,8 @@ namespace MusicBeePlugin
             {
                 case NotificationType.PluginStartup:
                     // perform startup initialisation
-                    try
-                    {
-                        SetupServer();
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                        MessageBox.Show("hello");
-                        throw;
-                    }
+                    server = new ListenTogetherServer();
+                    server.SetupServer();
 
                     switch (mbApiInterface.Player_GetPlayState())
                     {
@@ -207,5 +165,13 @@ namespace MusicBeePlugin
         //    TextRenderer.DrawText(e.Graphics, "hello", SystemFonts.CaptionFont, new Point(10, 10), Color.Blue);
         //}
 
+        #region ServerInterfaceFunctions
+
+        public static string GetCurrentTrack()
+        {
+            return instance.mbApiInterface.NowPlaying_GetFileUrl();
+        }
+
+        #endregion
     }
 }
