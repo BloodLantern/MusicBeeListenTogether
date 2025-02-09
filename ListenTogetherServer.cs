@@ -11,10 +11,10 @@ namespace MusicBeePlugin
 
         public void SetupServer()
         {
-            string url = "http://localhost:9696/";
+            const string Url = "http://localhost:9696/";
 
             // Our web server is disposable.
-            server = CreateWebServer(url);
+            server = CreateWebServer(Url);
 
             // Once we've registered our modules and configured them, we call the RunAsync() method.
             server.RunAsync();
@@ -32,6 +32,7 @@ namespace MusicBeePlugin
                     .WithUrlPrefix(url)
                     .WithMode(HttpListenerMode.EmbedIO))
                 // First, we will configure our web server by adding Modules.
+                .WithCors()
                 .WithLocalSessionManager()
                 .WithWebApi("/musicbee", m => m.WithController<MusicBeeController>())
                 //.WithModule(new WebSocketChatModule("/chat"))
