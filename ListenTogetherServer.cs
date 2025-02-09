@@ -35,8 +35,6 @@ namespace MusicBeePlugin
                 .WithCors()
                 .WithLocalSessionManager()
                 .WithWebApi("/musicbee", m => m.WithController<MusicBeeController>())
-                //.WithModule(new WebSocketChatModule("/chat"))
-                //.WithModule(new WebSocketTerminalModule("/terminal"))
                 .WithModule(new ActionModule("/", HttpVerbs.Any, ctx => ctx.SendDataAsync(new { Message = "Error" })));
 
             // Listen for state changes.
