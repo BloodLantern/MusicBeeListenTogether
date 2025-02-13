@@ -44,7 +44,7 @@
     <Compile Include="Properties\AssemblyInfo.cs"/>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ListenTogether.csproj">
+    <ProjectReference Include="..\ListenTogether\ListenTogether.csproj">
       <Project>{f5d46ba1-6f21-40ef-9695-46105ccacd08}</Project>
       <Name>ListenTogether</Name>
     </ProjectReference>
