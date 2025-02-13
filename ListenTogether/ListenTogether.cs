@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using EmbedIO;
-using EmbedIO.Actions;
-using EmbedIO.WebApi;
-using Swan.Logging;
 
 namespace MusicBeePlugin
 {
@@ -16,26 +12,34 @@ namespace MusicBeePlugin
         private PluginInfo about = new PluginInfo();
 
         private ListenTogetherServer server;
+        private Discord.Discord discord;
+        private const long DiscordClientId = 1339580559596327005L;
+        private const string DiscordClientSecret = "hHIWHi7IFP5muHZOEvGLBIo4qbDyh3tg";
+        private const string DiscordApiVersion = "v10";
+        private const string DiscordApiBaseUrl = "https://discord.com/api/" + DiscordApiVersion;
+        private const string DiscordOAuth2BaseUrl = "https://discord.com/oauth2/authorize";
 
         public PluginInfo Initialise(IntPtr apiInterfacePtr)
         {
             instance = this;
 
+            //discord.UserManagerInstance.GetCurrentUser().Id;
+
             mbApiInterface = new MusicBeeApiInterface();
             mbApiInterface.Initialise(apiInterfacePtr);
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "MusicBee Listen Together";
-            about.Description = "A brief description of what this plugin does";
+            about.Description = "Allows listening to music together with friends!";
             about.Author = "BloodLantern, YohannDR";
-            about.TargetApplication = "";   //  the name of a Plugin Storage device or panel header for a dockable panel
+            about.TargetApplication = ""; // the name of a Plugin Storage device or panel header for a dockable panel
             about.Type = PluginType.General;
-            about.VersionMajor = 1;  // your plugin version
+            about.VersionMajor = 1; // your plugin version
             about.VersionMinor = 0;
             about.Revision = 1;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents;
-            about.ConfigurationPanelHeight = 0;   // height in pixels that musicbee should reserve in a panel for config settings. When set, a handle to an empty panel will be passed to the Configure function
+            about.ConfigurationPanelHeight = 0; // Height in pixels that MusicBee should reserve in a panel for config settings. When set, a handle to an empty panel will be passed to the Configure function
             return about;
         }
 
@@ -72,6 +76,8 @@ namespace MusicBeePlugin
         public void Close(PluginCloseReason reason)
         {
             server.StopServer();
+            
+            //discord.Dispose();
         }
 
         // uninstall this plugin - clean up any persisted files
@@ -87,7 +93,9 @@ namespace MusicBeePlugin
             switch (type)
             {
                 case NotificationType.PluginStartup:
-                    // perform startup initialisation
+                    // perform startup initialization
+                    //discord = new Discord.Discord(DiscordClientId, (ulong) Discord.CreateFlags.NoRequireDiscord);
+                    
                     server = new ListenTogetherServer();
                     server.SetupServer();
 
