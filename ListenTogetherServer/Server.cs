@@ -3,9 +3,9 @@ using EmbedIO.Actions;
 using EmbedIO.WebApi;
 using Swan.Logging;
 
-namespace MusicBeePlugin
+namespace ListenTogetherServer
 {
-    public class ListenTogetherServer
+    public class Server
     {
         private WebServer server;
 
@@ -13,10 +13,7 @@ namespace MusicBeePlugin
         {
             string url = "http://localhost:9696/";
 
-            // Our web server is disposable.
             server = CreateWebServer(url);
-
-            // Once we've registered our modules and configured them, we call the RunAsync() method.
             server.RunAsync();
         }
 
@@ -31,16 +28,13 @@ namespace MusicBeePlugin
             WebServer webServer = new WebServer(o => o
                     .WithUrlPrefix(url)
                     .WithMode(HttpListenerMode.EmbedIO))
-                // First, we will configure our web server by adding Modules.
                 .WithLocalSessionManager()
                 .WithWebApi("/musicbee", m => m.WithController<MusicBeeController>())
-                //.WithModule(new WebSocketChatModule("/chat"))
-                //.WithModule(new WebSocketTerminalModule("/terminal"))
                 .WithModule(new ActionModule("/", HttpVerbs.Any, ctx => ctx.SendDataAsync(new { Message = "Error" })));
 
             // Listen for state changes.
-            webServer.StateChanged += (s, e) => $"WebServer New State - {e.NewState}".Info();
-
+            webServer.StateChanged += (_, e) => $"WebServer New State - {e.NewState}".Info();
+            
             return webServer;
         }
     }

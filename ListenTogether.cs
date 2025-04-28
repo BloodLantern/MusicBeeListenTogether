@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using EmbedIO;
-using EmbedIO.Actions;
-using EmbedIO.WebApi;
-using Swan.Logging;
 
 namespace MusicBeePlugin
 {
@@ -15,7 +11,7 @@ namespace MusicBeePlugin
         private MusicBeeApiInterface mbApiInterface;
         private PluginInfo about = new PluginInfo();
 
-        private ListenTogetherServer server;
+        //private ListenTogetherServer server;
 
         public PluginInfo Initialise(IntPtr apiInterfacePtr)
         {
@@ -25,9 +21,9 @@ namespace MusicBeePlugin
             mbApiInterface.Initialise(apiInterfacePtr);
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "MusicBee Listen Together";
-            about.Description = "A brief description of what this plugin does";
+            about.Description = "Monkey together strong";
             about.Author = "BloodLantern, YohannDR";
-            about.TargetApplication = "";   //  the name of a Plugin Storage device or panel header for a dockable panel
+            about.TargetApplication = "Window title";   //  the name of a Plugin Storage device or panel header for a dockable panel
             about.Type = PluginType.General;
             about.VersionMajor = 1;  // your plugin version
             about.VersionMinor = 0;
@@ -36,6 +32,11 @@ namespace MusicBeePlugin
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents;
             about.ConfigurationPanelHeight = 0;   // height in pixels that musicbee should reserve in a panel for config settings. When set, a handle to an empty panel will be passed to the Configure function
+
+            createMenuItem();
+            
+            // Try to connect to the server
+            
             return about;
         }
 
@@ -71,7 +72,7 @@ namespace MusicBeePlugin
         // MusicBee is closing the plugin (plugin is being disabled by user or MusicBee is shutting down)
         public void Close(PluginCloseReason reason)
         {
-            server.StopServer();
+            //server.StopServer();
         }
 
         // uninstall this plugin - clean up any persisted files
@@ -88,8 +89,8 @@ namespace MusicBeePlugin
             {
                 case NotificationType.PluginStartup:
                     // perform startup initialisation
-                    server = new ListenTogetherServer();
-                    server.SetupServer();
+                    /*server = new ListenTogetherServer();
+                    server.SetupServer();*/
 
                     switch (mbApiInterface.Player_GetPlayState())
                     {
@@ -104,6 +105,17 @@ namespace MusicBeePlugin
                     // ...
                     break;
             }
+        }
+
+        private void createMenuItem()
+        {
+            mbApiInterface.MB_AddMenuItem("mnuTools/Start My Plugin", null, menuClicked);
+        }
+
+        private void menuClicked(object sender, EventArgs args)
+        {
+            Form1 myForm = new Form1();
+            myForm.Show();
         }
 
         // return an array of lyric or artwork provider names this plugin supports
@@ -134,21 +146,21 @@ namespace MusicBeePlugin
         //  you can add your own controls to the panel if needed
         //  you can control the scrollable area of the panel using the mbApiInterface.MB_SetPanelScrollableArea function
         //  to set a MusicBee header for the panel, set about.TargetApplication in the Initialise function above to the panel header text
-        //public int OnDockablePanelCreated(Control panel)
-        //{
-        //  //    return the height of the panel and perform any initialisation here
-        //  //    MusicBee will call panel.Dispose() when the user removes this panel from the layout configuration
-        //  //    < 0 indicates to MusicBee this control is resizable and should be sized to fill the panel it is docked to in MusicBee
-        //  //    = 0 indicates to MusicBee this control resizeable
-        //  //    > 0 indicates to MusicBee the fixed height for the control.Note it is recommended you scale the height for high DPI screens(create a graphics object and get the DpiY value)
-        //    float dpiScaling = 0;
-        //    using (Graphics g = panel.CreateGraphics())
-        //    {
-        //        dpiScaling = g.DpiY / 96f;
-        //    }
-        //    panel.Paint += panel_Paint;
-        //    return Convert.ToInt32(100 * dpiScaling);
-        //}
+        public int OnDockablePanelCreated(Control panel)
+        {
+          //    return the height of the panel and perform any initialisation here
+          //    MusicBee will call panel.Dispose() when the user removes this panel from the layout configuration
+          //    < 0 indicates to MusicBee this control is resizable and should be sized to fill the panel it is docked to in MusicBee
+          //    = 0 indicates to MusicBee this control resizeable
+          //    > 0 indicates to MusicBee the fixed height for the control.Note it is recommended you scale the height for high DPI screens(create a graphics object and get the DpiY value)
+            float dpiScaling = 0;
+            using (Graphics g = panel.CreateGraphics())
+            {
+                dpiScaling = g.DpiY / 96f;
+            }
+            panel.Paint += panel_Paint;
+            return Convert.ToInt32(100 * dpiScaling);
+        }
 
         // presence of this function indicates to MusicBee that the dockable panel created above will show menu items when the panel header is clicked
         // return the list of ToolStripMenuItems that will be displayed
@@ -159,11 +171,11 @@ namespace MusicBeePlugin
         //    return list;
         //}
 
-        //private void panel_Paint(object sender, PaintEventArgs e)
-        //{
-        //    e.Graphics.Clear(Color.Red);
-        //    TextRenderer.DrawText(e.Graphics, "hello", SystemFonts.CaptionFont, new Point(10, 10), Color.Blue);
-        //}
+        private void panel_Paint(object sender, PaintEventArgs e)
+        {
+            e.Graphics.Clear(Color.Red);
+            TextRenderer.DrawText(e.Graphics, "hello", SystemFonts.CaptionFont, new Point(10, 10), Color.Blue);
+        }
 
         #region ServerInterfaceFunctions
 
