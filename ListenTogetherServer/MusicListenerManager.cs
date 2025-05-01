@@ -1,22 +1,44 @@
-﻿using System.Collections.Concurrent;
-
-namespace ListenTogetherServer;
+﻿namespace ListenTogetherServer;
 
 public static class MusicListenerManager
 {
-    private static readonly ConcurrentBag<MusicListener> Listeners = [];
+    public static List<MusicListener> Listeners { get; } = [];
 
     private static readonly List<ListeningQueue> ListeningQueues = [];
 
-    public static void AddListener(MusicListener newListener) => Listeners.Add(newListener);
+    public static void AddListener(MusicListener newListener)
+    {
+        lock (Listeners)
+            Listeners.Add(newListener);
+    }
 
-    public static bool HasListener(string username) => Listeners.Exists(l => l.Username == username);
+    public static bool HasListener(string username)
+    {
+        lock (Listeners)
+            return Listeners.Exists(l => l.Username == username);
+    }
 
-    public static bool HasListener(Guid id) => Listeners.Exists(l => l.Id == id);
+    public static bool HasListener(Guid id)
+    {
+        lock (Listeners)
+            return Listeners.Exists(l => l.Id == id);
+    }
 
-    public static MusicListener GetListener(Guid id) => Listeners.Find(l => l.Id == id);
+    public static MusicListener GetListener(Guid id)
+    {
+        lock (Listeners)
+            return Listeners.Find(l => l.Id == id);
+    }
 
-    public static void RemoveInactiveListeners() => Listeners.RemoveAll(l => l.IsInactive);
+    public static void RemoveInactiveListeners()
+    {
+        lock (Listeners)
+            Listeners.RemoveAll(l => l.IsInactive);
+    }
 
-    public static void RemoveListener(Guid id) => Listeners.RemoveAll(l => l.Id == id);
+    public static void RemoveListener(Guid id)
+    {
+        lock (Listeners)
+            Listeners.RemoveAll(l => l.Id == id);
+    }
 }

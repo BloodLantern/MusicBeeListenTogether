@@ -31,15 +31,10 @@ namespace MusicBeePlugin
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("B");
-            System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("C");
-            System.Windows.Forms.TreeNode treeNode3 = new System.Windows.Forms.TreeNode("A", new System.Windows.Forms.TreeNode[] {
-            treeNode1,
-            treeNode2});
-            System.Windows.Forms.TreeNode treeNode4 = new System.Windows.Forms.TreeNode("D");
-            System.Windows.Forms.TreeNode treeNode5 = new System.Windows.Forms.TreeNode("E");
             this.button1 = new System.Windows.Forms.Button();
             this.treeView1 = new System.Windows.Forms.TreeView();
+            this.button2 = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // button1
@@ -56,43 +51,51 @@ namespace MusicBeePlugin
             // 
             this.treeView1.Location = new System.Drawing.Point(194, 138);
             this.treeView1.Name = "treeView1";
-            treeNode1.Name = "Node1";
-            treeNode1.Text = "B";
-            treeNode2.Name = "Node2";
-            treeNode2.Text = "C";
-            treeNode3.Name = "Node0";
-            treeNode3.Text = "A";
-            treeNode4.Name = "Node3";
-            treeNode4.Text = "D";
-            treeNode5.Name = "Node4";
-            treeNode5.Text = "E";
-            this.treeView1.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
-            treeNode3,
-            treeNode4,
-            treeNode5});
             this.treeView1.Size = new System.Drawing.Size(361, 245);
             this.treeView1.TabIndex = 3;
             this.treeView1.BeforeCollapse += new System.Windows.Forms.TreeViewCancelEventHandler(this.treeView1_BeforeCollapse);
             this.treeView1.BeforeSelect += new System.Windows.Forms.TreeViewCancelEventHandler(this.treeView1_BeforeSelect);
             this.treeView1.NodeMouseDoubleClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeView1_NodeMouseDoubleClick);
             // 
+            // button2
+            // 
+            this.button2.Location = new System.Drawing.Point(562, 247);
+            this.button2.Name = "button2";
+            this.button2.Size = new System.Drawing.Size(75, 23);
+            this.button2.TabIndex = 4;
+            this.button2.Text = "Refresh";
+            this.button2.UseVisualStyleBackColor = true;
+            this.button2.Click += new System.EventHandler(this.button2_Click);
+            // 
+            // label1
+            // 
+            this.label1.Location = new System.Drawing.Point(301, 20);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(130, 22);
+            this.label1.TabIndex = 5;
+            this.label1.Text = "State: DISCONNECTED";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.button2);
             this.Controls.Add(this.treeView1);
             this.Controls.Add(this.button1);
             this.Name = "Form1";
             this.Text = "Form1";
             this.ResumeLayout(false);
-
         }
+
+        private System.Windows.Forms.Label label1;
 
         #endregion
 
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.TreeView treeView1;
+        private System.Windows.Forms.Button button2;
     }
 }
 

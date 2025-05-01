@@ -9,11 +9,9 @@ namespace ListenTogetherServer
     {
         private WebServer server;
 
-        public void SetupServer()
+        public void SetupServer(string serverUri)
         {
-            string url = "http://localhost:9696/";
-
-            server = CreateWebServer(url);
+            server = CreateWebServer(serverUri);
             server.RunAsync();
         }
 

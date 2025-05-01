@@ -1,19 +1,29 @@
-﻿using ListenTogetherServer;
+﻿using MusicBeePlugin;
 
-Console.WriteLine("Hello, World!");
+namespace ListenTogetherServer;
 
-Server server = new();
-server.SetupServer();
+internal static class Program
+{
+    public static void Main(string[] args)
+    {
+        Server server = new();
+        
+        Uri serverUri = ServerApi.ServerUri;
+        if (args.Length > 0)
+            serverUri = ServerApi.MakeServerUri(args[0]);
+        server.SetupServer(serverUri.ToString());
 
-Timer removeInactiveUsersTimer = new(
-    _ => MusicListenerManager.RemoveInactiveListeners(),
-    null,
-    MusicListener.InactiveTime,
-    MusicListener.InactiveTime
-);
+        Timer removeInactiveUsersTimer = new(
+            _ => MusicListenerManager.RemoveInactiveListeners(),
+            null,
+            MusicListener.InactiveTime,
+            MusicListener.InactiveTime
+        );
 
-_ = Console.ReadLine();
+        _ = Console.ReadLine();
 
-removeInactiveUsersTimer.Dispose();
+        removeInactiveUsersTimer.Dispose();
 
-server.StopServer();
+        server.StopServer();
+    }
+}

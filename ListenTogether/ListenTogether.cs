@@ -1,29 +1,30 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using JetBrains.Annotations;
 
 namespace MusicBeePlugin
 {
+    [UsedImplicitly]
     public partial class Plugin
     {
-        private static Plugin instance;
-
         private MusicBeeApiInterface mbApiInterface;
-        private PluginInfo about = new PluginInfo();
+        private readonly PluginInfo about = new();
 
-        //private ListenTogetherServer server;
+        private readonly ServerApi serverApi;
 
+        public Plugin() => serverApi = new(this);
+
+        [UsedImplicitly]
         public PluginInfo Initialise(IntPtr apiInterfacePtr)
         {
-            instance = this;
-
-            mbApiInterface = new MusicBeeApiInterface();
+            mbApiInterface = new();
             mbApiInterface.Initialise(apiInterfacePtr);
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "MusicBee Listen Together";
             about.Description = "Monkey together strong";
             about.Author = "BloodLantern, YohannDR";
-            about.TargetApplication = "Window title";   //  the name of a Plugin Storage device or panel header for a dockable panel
+            about.TargetApplication = "Listen Together";   //  the name of a Plugin Storage device or panel header for a dockable panel
             about.Type = PluginType.General;
             about.VersionMajor = 1;  // your plugin version
             about.VersionMinor = 0;
@@ -33,13 +34,12 @@ namespace MusicBeePlugin
             about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents;
             about.ConfigurationPanelHeight = 0;   // height in pixels that musicbee should reserve in a panel for config settings. When set, a handle to an empty panel will be passed to the Configure function
 
-            createMenuItem();
-            
-            // Try to connect to the server
+            CreateMenuItem();
             
             return about;
         }
 
+        [UsedImplicitly]
         public bool Configure(IntPtr panelHandle)
         {
             // save any persistent settings in a sub-folder of this path
@@ -50,19 +50,20 @@ namespace MusicBeePlugin
             if (panelHandle != IntPtr.Zero)
             {
                 Panel configPanel = (Panel)Control.FromHandle(panelHandle);
-                Label prompt = new Label();
+                Label prompt = new();
                 prompt.AutoSize = true;
-                prompt.Location = new Point(0, 0);
+                prompt.Location = new(0, 0);
                 prompt.Text = "prompt:";
-                TextBox textBox = new TextBox();
-                textBox.Bounds = new Rectangle(60, 0, 100, textBox.Height);
-                configPanel.Controls.AddRange(new Control[] { prompt, textBox });
+                TextBox textBox = new();
+                textBox.Bounds = new(60, 0, 100, textBox.Height);
+                configPanel.Controls.AddRange([prompt, textBox]);
             }
             return false;
         }
        
         // called by MusicBee when the user clicks Apply or Save in the MusicBee Preferences screen.
         // its up to you to figure out whether anything has changed and needs updating
+        [UsedImplicitly]
         public void SaveSettings()
         {
             // save any persistent settings in a sub-folder of this path
@@ -70,18 +71,21 @@ namespace MusicBeePlugin
         }
 
         // MusicBee is closing the plugin (plugin is being disabled by user or MusicBee is shutting down)
+        [UsedImplicitly]
         public void Close(PluginCloseReason reason)
         {
-            //server.StopServer();
+            _ = serverApi.Disconnect();
         }
 
         // uninstall this plugin - clean up any persisted files
+        [UsedImplicitly]
         public void Uninstall()
         {
         }
 
         // receive event notifications from MusicBee
         // you need to set about.ReceiveNotificationFlags = PlayerEvents to receive all notifications, and not just the startup event
+        [UsedImplicitly]
         public void ReceiveNotification(string sourceFileUrl, NotificationType type)
         {
             // perform some action depending on the notification type
@@ -89,8 +93,8 @@ namespace MusicBeePlugin
             {
                 case NotificationType.PluginStartup:
                     // perform startup initialisation
-                    /*server = new ListenTogetherServer();
-                    server.SetupServer();*/
+
+                    _ = serverApi.Connect();
 
                     switch (mbApiInterface.Player_GetPlayState())
                     {
@@ -101,20 +105,20 @@ namespace MusicBeePlugin
                     }
                     break;
                 case NotificationType.TrackChanged:
-                    string artist = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artist);
-                    // ...
+                    if (serverApi.Connected)
+                        _ = serverApi.UpdatePlayingTrack();
                     break;
             }
         }
 
-        private void createMenuItem()
+        private void CreateMenuItem()
         {
-            mbApiInterface.MB_AddMenuItem("mnuTools/Start My Plugin", null, menuClicked);
+            mbApiInterface.MB_AddMenuItem("mnuTools/Start My Plugin", null, MenuClicked);
         }
 
-        private void menuClicked(object sender, EventArgs args)
+        private void MenuClicked(object sender, EventArgs args)
         {
-            Form1 myForm = new Form1();
+            Form1 myForm = new(serverApi);
             myForm.Show();
         }
 
@@ -146,13 +150,14 @@ namespace MusicBeePlugin
         //  you can add your own controls to the panel if needed
         //  you can control the scrollable area of the panel using the mbApiInterface.MB_SetPanelScrollableArea function
         //  to set a MusicBee header for the panel, set about.TargetApplication in the Initialise function above to the panel header text
+        [UsedImplicitly]
         public int OnDockablePanelCreated(Control panel)
         {
-          //    return the height of the panel and perform any initialisation here
-          //    MusicBee will call panel.Dispose() when the user removes this panel from the layout configuration
-          //    < 0 indicates to MusicBee this control is resizable and should be sized to fill the panel it is docked to in MusicBee
-          //    = 0 indicates to MusicBee this control resizeable
-          //    > 0 indicates to MusicBee the fixed height for the control.Note it is recommended you scale the height for high DPI screens(create a graphics object and get the DpiY value)
+            //    return the height of the panel and perform any initialisation here
+            //    MusicBee will call panel.Dispose() when the user removes this panel from the layout configuration
+            //    < 0 indicates to MusicBee this control is resizable and should be sized to fill the panel it is docked to in MusicBee
+            //    = 0 indicates to MusicBee this control resizeable
+            //    > 0 indicates to MusicBee the fixed height for the control.Note it is recommended you scale the height for high DPI screens(create a graphics object and get the DpiY value)
             float dpiScaling = 0;
             using (Graphics g = panel.CreateGraphics())
             {
@@ -177,13 +182,15 @@ namespace MusicBeePlugin
             TextRenderer.DrawText(e.Graphics, "hello", SystemFonts.CaptionFont, new Point(10, 10), Color.Blue);
         }
 
-        #region ServerInterfaceFunctions
-
-        public static string GetCurrentTrack()
+        public ListeningState GetListeningState()
         {
-            return instance.mbApiInterface.NowPlaying_GetFileUrl();
+            return new()
+            {
+                TrackTitle = mbApiInterface.NowPlaying_GetFileUrl(),
+                TrackAlbum = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Album),
+                TrackArtists = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artists),
+                Time = DateTime.Now
+            };
         }
-
-        #endregion
     }
 }

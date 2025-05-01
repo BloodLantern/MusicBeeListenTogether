@@ -1,4 +1,6 @@
-﻿namespace ListenTogetherServer;
+﻿using MusicBeePlugin;
+
+namespace ListenTogetherServer;
 
 public class MusicListener
 {
@@ -11,6 +13,8 @@ public class MusicListener
     public DateTime LastRequestTime { get; private set; } = DateTime.Now;
 
     public ListeningState ListeningState;
+
+    public MusicListener CurrentQueueOwner;
 
     public bool IsInactive => DateTime.Now - LastRequestTime > InactiveTime;
 
