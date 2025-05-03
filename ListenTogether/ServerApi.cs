@@ -15,12 +15,15 @@ namespace MusicBeePlugin
         public const string ServerEndpoint = "localhost"; // 172.27.66.211
         public const uint ServerPort = 9696;
         public static readonly Uri ServerUri = MakeServerUri();
-        public static Uri MakeServerUri(string endpoint = ServerEndpoint, uint port = ServerPort) => new($"http://{endpoint}:{port}/");
+        public static Uri MakeServerUri(string endpoint = ServerEndpoint, uint port = ServerPort) => new($"http://{endpoint}:{port}");
 
         public const string RequestConnect = "/connect";
         public const string RequestDisconnect = "/disconnect";
-        public const string RequestListenersUpdateListeningActivity = "/listeners/updateListeningActivity";
+        public const string RequestListenersClearActivity = "/listeners/clearActivity";
+        public const string RequestListenersUpdateActivity = "/listeners/updateActivity";
         public const string RequestListenersStates = "/listeners/states";
+        public const string RequestListenersJoinQueue = "/listeners/joinQueue";
+        public const string RequestListenersLeaveQueue = "/listeners/leaveQueue";
 
         private HttpClient Client { get; } = new();
         
@@ -42,7 +45,7 @@ namespace MusicBeePlugin
         }
 
         public async Task<bool> Connect()
-            => await MakeGetRequest<string>(RequestConnect, $"username={Environment.UserName}", result => id = Guid.Parse(result));
+            => await MakeGetRequestString(RequestConnect, $"username={Environment.UserName}", result => id = Guid.Parse(result));
 
         public async Task<bool> Disconnect()
             => await MakePostRequest(RequestDisconnect, IdParameter, null, () => id = Guid.Empty, null, () => Client.Dispose());
@@ -50,16 +53,34 @@ namespace MusicBeePlugin
         public async Task<bool> UpdatePlayingTrack()
         {
             ObjectContent<ListeningState> content = new(Plugin.GetListeningState(), new JsonMediaTypeFormatter());
-            return await MakePostRequest(RequestListenersUpdateListeningActivity, IdParameter, content);
+            return await MakePostRequest(RequestListenersUpdateActivity, IdParameter, content);
         }
 
+        public async Task<bool> ClearPlayingTrack() => await MakePostRequest(RequestListenersClearActivity, IdParameter);
+
         public async Task<bool> UpdateListenerStates()
-            => await MakeGetRequest<string>(RequestConnect, null, result => ListenerSharedStates = Json.Deserialize<ListenerSharedState[]>(result));
+            => await MakeGetRequest<ListenerSharedState[]>(RequestListenersStates, null, result => ListenerSharedStates = result);
+
+        public async Task<bool> JoinListeningQueue(string username)
+            => await MakePostRequest(RequestListenersJoinQueue, $"{IdParameter}&username={username}");
+
+        public async Task<bool> LeaveListeningQueue() => await MakePostRequest(RequestListenersLeaveQueue, IdParameter);
 
         private async Task<bool> MakeGetRequest<T>(
             string request,
             string parameters,
             Action<T> onSuccess,
+            Action<HttpRequestException> onException = null,
+            Action onFinally = null
+        )
+        {
+            return await MakeGetRequestString(request, parameters, s => onSuccess(Json.Deserialize<T>(s)), onException, onFinally);
+        }
+
+        private async Task<bool> MakeGetRequestString(
+            string request,
+            string parameters,
+            Action<string> onSuccess,
             Action<HttpRequestException> onException = null,
             Action onFinally = null
         )
@@ -71,7 +92,7 @@ namespace MusicBeePlugin
                 if (!response.IsSuccessStatusCode)
                     return false;
 
-                onSuccess?.Invoke(await response.Content.ReadAsAsync<T>());
+                onSuccess((await response.Content.ReadAsStringAsync()).Trim(' ', '\t', '"'));
 
                 return true;
             }
@@ -120,7 +141,7 @@ namespace MusicBeePlugin
         [Pure]
         private static string MakeUrl(string request, string parameters)
         {
-            string url = request;
+            string url = ServerUri + "/musicbee" + request;
             if (!string.IsNullOrWhiteSpace(parameters))
                 url += '?' + parameters.Trim();
             return url;

@@ -34,7 +34,7 @@ namespace MusicBeePlugin
             about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents;
             about.ConfigurationPanelHeight = 0;   // height in pixels that musicbee should reserve in a panel for config settings. When set, a handle to an empty panel will be passed to the Configure function
 
-            CreateMenuItem();
+            mbApiInterface.MB_AddMenuItem("mnuTools/Listen Together", null, MenuClicked);
             
             return about;
         }
@@ -88,32 +88,34 @@ namespace MusicBeePlugin
         [UsedImplicitly]
         public void ReceiveNotification(string sourceFileUrl, NotificationType type)
         {
-            // perform some action depending on the notification type
+            // ReSharper disable once SwitchStatementMissingSomeEnumCasesNoDefault
             switch (type)
             {
                 case NotificationType.PluginStartup:
-                    // perform startup initialisation
-
                     _ = serverApi.Connect();
-
-                    switch (mbApiInterface.Player_GetPlayState())
-                    {
-                        case PlayState.Playing:
-                        case PlayState.Paused:
-                            // ...
-                            break;
-                    }
                     break;
+                
                 case NotificationType.TrackChanged:
                     if (serverApi.Connected)
                         _ = serverApi.UpdatePlayingTrack();
                     break;
+                
+                case NotificationType.PlayStateChanged:
+                    if (serverApi.Connected)
+                    {
+                        switch (mbApiInterface.Player_GetPlayState())
+                        {
+                            case PlayState.Playing:
+                                _ = serverApi.UpdatePlayingTrack();
+                                break;
+                            
+                            case PlayState.Paused:
+                                _ = serverApi.ClearPlayingTrack();
+                                break;
+                        }
+                    }
+                    break;
             }
-        }
-
-        private void CreateMenuItem()
-        {
-            mbApiInterface.MB_AddMenuItem("mnuTools/Start My Plugin", null, MenuClicked);
         }
 
         private void MenuClicked(object sender, EventArgs args)
@@ -186,7 +188,7 @@ namespace MusicBeePlugin
         {
             return new()
             {
-                TrackTitle = mbApiInterface.NowPlaying_GetFileUrl(),
+                TrackTitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle),
                 TrackAlbum = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Album),
                 TrackArtists = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artists),
                 Time = DateTime.Now

@@ -2,9 +2,24 @@
 
 public static class MusicListenerManager
 {
-    public static List<MusicListener> Listeners { get; } = [];
+    /// <summary>
+    /// The currently connected listeners list.
+    /// This can be modified from a Timer thread to remove the inactive users, and therefore needs to be locked before access.
+    /// </summary>
+    public static readonly List<MusicListener> Listeners = [];
 
-    private static readonly List<ListeningQueue> ListeningQueues = [];
+    public static readonly List<ListeningQueue> ListeningQueues = [];
+
+    public static int ListenerCount { get { lock (Listeners) return Listeners.Count; } }
+
+    public static void ForEachListener(Action<MusicListener> action)
+    {
+        lock (Listeners)
+        {
+            foreach (MusicListener listener in Listeners)
+                action(listener);
+        }
+    }
 
     public static void AddListener(MusicListener newListener)
     {
@@ -28,6 +43,18 @@ public static class MusicListenerManager
     {
         lock (Listeners)
             return Listeners.Find(l => l.Id == id);
+    }
+
+    public static MusicListener GetListener(int index)
+    {
+        lock (Listeners)
+            return Listeners[index];
+    }
+
+    public static MusicListener GetListener(string username)
+    {
+        lock (Listeners)
+            return Listeners.Find(l => l.Username == username);
     }
 
     public static void RemoveInactiveListeners()

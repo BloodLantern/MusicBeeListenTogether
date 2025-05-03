@@ -41,7 +41,7 @@ namespace ListenTogetherServer
             MusicListenerManager.RemoveListener(id);
         }
 
-        [Route(HttpVerbs.Post, ServerApi.RequestListenersUpdateListeningActivity)]
+        [Route(HttpVerbs.Post, ServerApi.RequestListenersUpdateActivity)]
         [UsedImplicitly]
         public void ListenersUpdateListeningActivity([QueryField] Guid id, [JsonData] ListeningState state)
         {
@@ -52,15 +52,26 @@ namespace ListenTogetherServer
             listener.SetActiveNow();
         }
 
+        [Route(HttpVerbs.Post, ServerApi.RequestListenersClearActivity)]
+        [UsedImplicitly]
+        public void ListenersClearListeningActivity([QueryField] Guid id)
+        {
+            CheckListenerConnected(id);
+
+            MusicListener listener = MusicListenerManager.GetListener(id);
+            listener.ListeningState = default;
+            listener.SetActiveNow();
+        }
+
         [Route(HttpVerbs.Get, ServerApi.RequestListenersStates)]
         [UsedImplicitly]
         public string ListenersStates()
         {
-            ListenerSharedState[] result = new ListenerSharedState[MusicListenerManager.Listeners.Count];
+            ListenerSharedState[] result = new ListenerSharedState[MusicListenerManager.ListenerCount];
 
-            for (int i = 0; i < MusicListenerManager.Listeners.Count; i++)
+            for (int i = 0; i < MusicListenerManager.ListenerCount; i++)
             {
-                MusicListener listener = MusicListenerManager.Listeners[i];
+                MusicListener listener = MusicListenerManager.GetListener(i);
                 result[i] = new()
                 {
                     Username = listener.Username,
@@ -70,6 +81,34 @@ namespace ListenTogetherServer
             }
 
             return result.ToJson();
+        }
+
+        [Route(HttpVerbs.Post, ServerApi.RequestListenersJoinQueue)]
+        [UsedImplicitly]
+        public void ListenersJoinQueue([QueryField] Guid id, [QueryField] string username)
+        {
+            CheckListenerConnected(id);
+
+            MusicListener listener = MusicListenerManager.GetListener(id);
+            MusicListener newQueueOwner = MusicListenerManager.GetListener(username);
+            listener.CurrentQueueOwner = newQueueOwner;
+
+            ListeningQueue newQueue = new(newQueueOwner, listener);
+            MusicListenerManager.ListeningQueues.Add(newQueue);
+        }
+
+        [Route(HttpVerbs.Post, ServerApi.RequestListenersLeaveQueue)]
+        [UsedImplicitly]
+        public void ListenersLeaveQueue([QueryField] Guid id)
+        {
+            CheckListenerConnected(id);
+
+            MusicListener listener = MusicListenerManager.GetListener(id);
+            
+            if (listener.CurrentQueueOwner == null)
+                throw HttpException.BadRequest("User is not in a queue");
+
+            listener.CurrentQueueOwner = null; // TODO
         }
 
         private static void CheckListenerConnected(Guid id)

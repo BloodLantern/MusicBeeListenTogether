@@ -13,23 +13,79 @@ namespace MusicBeePlugin
         public Form1(ServerApi serverApi)
         {
             this.serverApi = serverApi;
-            
+
             InitializeComponent();
 
             UpdateStatusText(serverApi.Connected);
 
             if (!serverApi.Connected)
                 return;
-            
+
             // Disable the Reconnect button if we're already connected
             button1.Enabled = false;
-            
+
             // Initialize treeView1 contents with the currently connected users and select the current queue owner (if applicable)
-            RefreshListenersList().ContinueWith(_ =>
+            RefreshListenersList().ContinueWith(refreshTask =>
             {
-                treeView1.ExpandAll();
-                Refresh();
+                if (!refreshTask.Result)
+                    return;
+
+                Invoke(() =>
+                {
+                    treeView1.ExpandAll();
+                    Refresh();
+                });
             });
+        }
+
+        public async Task<bool> RefreshListenersList()
+        {
+            TreeNodeCollection rootNodes = treeView1.Nodes;
+            rootNodes.Clear();
+            
+            if (!await serverApi.UpdateListenerStates())
+                return false;
+
+            List<ListenerSharedState> listeners = new(serverApi.ListenerSharedStates);
+            List<ListenerSharedState> queueOwners = new(serverApi.ListenerSharedStates.Where(l => l.QueueOwner == null));
+            // Remove all queueOwners from listeners
+            listeners.RemoveAll(l => queueOwners.Exists(qo => l.Username == qo.Username));
+
+            foreach (ListenerSharedState queueOwner in queueOwners)
+            {
+                string nodeText = queueOwner.Username;
+                if (!queueOwner.State.IsIdle())
+                    nodeText += $" - {queueOwner.State.TrackTitle} from {queueOwner.State.TrackAlbum} by {queueOwner.State.TrackArtists}";
+
+                TreeNode rootNode = rootNodes.Add(nodeText);
+                rootNode.Tag = queueOwner.Username;
+
+                foreach (ListenerSharedState listener in listeners)
+                {
+                    if (listener.QueueOwner != queueOwner.Username)
+                        continue;
+
+                    TreeNode child = rootNode.Nodes.Add(listener.Username);
+                    child.Tag = listener.Username;
+                    listeners.RemoveAll(l => l.Username == listener.Username);
+                    break;
+                }
+            }
+
+            return true;
+        }
+
+        public void UpdateStatusText(bool connected) => label1.Text = $"Status: {(connected ? "CONNECTED" : "DISCONNECTED")}";
+
+        public async Task<bool> JoinQueue(string username) => await serverApi.JoinListeningQueue(username);
+
+        public async Task<bool> LeaveQueue() => await serverApi.LeaveListeningQueue();
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+
+            _ = RefreshListenersList();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -53,6 +109,7 @@ namespace MusicBeePlugin
         private void treeView1_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
             // Go duoQ with root node
+            _ = JoinQueue((string) e.Node.Tag);
         }
 
         private void treeView1_BeforeSelect(object sender, TreeViewCancelEventArgs e)
@@ -71,40 +128,9 @@ namespace MusicBeePlugin
 
         private void button2_Click(object sender, EventArgs e) => _ = RefreshListenersList();
 
-        public async Task RefreshListenersList()
-        {
-            if (!await serverApi.UpdateListenerStates())
-                return;
+        private void button3_Click(object sender, EventArgs e) => _ = JoinQueue((string) treeView1.SelectedNode.Tag);
 
-            TreeNodeCollection rootNodes = treeView1.Nodes;
-            rootNodes.Clear();
-
-            List<ListenerSharedState> listeners = new(serverApi.ListenerSharedStates);
-            List<ListenerSharedState> queueOwners = new(serverApi.ListenerSharedStates.Where(l => l.QueueOwner == null));
-            // Remove all queueOwners from listeners
-            listeners.RemoveAll(l => queueOwners.Exists(qo => l.Username == qo.Username));
-
-            foreach (ListenerSharedState queueOwner in queueOwners)
-            {
-                string nodeText = queueOwner.Username;
-                if (!queueOwner.State.IsIdle())
-                    nodeText += $" - {queueOwner.State.TrackTitle} from {queueOwner.State.TrackAlbum} by {queueOwner.State.TrackArtists}";
-                
-                TreeNode rootNode = rootNodes.Add(nodeText);
-
-                foreach (ListenerSharedState listener in listeners)
-                {
-                    if (listener.QueueOwner != queueOwner.Username)
-                        continue;
-
-                    rootNode.Nodes.Add(listener.Username);
-                    listeners.RemoveAll(l => l.Username == listener.Username);
-                    break;
-                }
-            }
-        }
-
-        public void UpdateStatusText(bool connected) => label1.Text = $"Status: {(connected ? "CONNECTED" : "DISCONNECTED")}";
+        private void button4_Click(object sender, EventArgs e) => _ = LeaveQueue();
     }
 }
 
