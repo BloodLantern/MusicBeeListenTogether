@@ -101,6 +101,7 @@ namespace MusicBeePlugin
             // button3
             // 
             this.button3.AutoSize = true;
+            this.button3.Enabled = false;
             this.button3.Location = new System.Drawing.Point(3, 32);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(73, 23);
@@ -112,6 +113,7 @@ namespace MusicBeePlugin
             // button4
             // 
             this.button4.AutoSize = true;
+            this.button4.Enabled = false;
             this.button4.Location = new System.Drawing.Point(3, 61);
             this.button4.Name = "button4";
             this.button4.Size = new System.Drawing.Size(80, 23);
@@ -228,6 +230,7 @@ namespace MusicBeePlugin
             this.treeView1.TabIndex = 4;
             this.treeView1.BeforeCollapse += new System.Windows.Forms.TreeViewCancelEventHandler(this.treeView1_BeforeCollapse);
             this.treeView1.BeforeSelect += new System.Windows.Forms.TreeViewCancelEventHandler(this.treeView1_BeforeSelect);
+            this.treeView1.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
             this.treeView1.NodeMouseDoubleClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeView1_NodeMouseDoubleClick);
             // 
             // Form1

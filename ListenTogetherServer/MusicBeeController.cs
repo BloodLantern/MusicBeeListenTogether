@@ -38,6 +38,18 @@ namespace ListenTogetherServer
         {
             CheckListenerConnected(id);
 
+            MusicListener listener = MusicListenerManager.GetListener(id);
+            if (listener.CurrentQueueOwner == null)
+            {
+                ListeningQueue queue = MusicListenerManager.GetListeningQueue(listener.Username, true);
+                MusicListenerManager.RemoveQueue(queue);
+            }
+            else
+            {
+                ListeningQueue queue = MusicListenerManager.GetListeningQueue(listener.Username, false);
+                queue?.Listeners.Remove(listener);
+            }
+
             MusicListenerManager.RemoveListener(id);
         }
 
@@ -108,7 +120,10 @@ namespace ListenTogetherServer
             if (listener.CurrentQueueOwner == null)
                 throw HttpException.BadRequest("User is not in a queue");
 
-            listener.CurrentQueueOwner = null; // TODO
+            listener.CurrentQueueOwner = null;
+
+            ListeningQueue queue = MusicListenerManager.GetListeningQueue(listener.Username, false);
+            queue.Listeners.Remove(listener);
         }
 
         private static void CheckListenerConnected(Guid id)

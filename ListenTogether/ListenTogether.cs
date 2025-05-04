@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Drawing;
+using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using JetBrains.Annotations;
+using Timer = System.Threading.Timer;
 
 namespace MusicBeePlugin
 {
@@ -14,6 +18,9 @@ namespace MusicBeePlugin
         private readonly ServerApi serverApi;
 
         public Plugin() => serverApi = new(this);
+
+        private Form1 form;
+        private Timer refreshListeningStatesTimer;
 
         [UsedImplicitly]
         public PluginInfo Initialise(IntPtr apiInterfacePtr)
@@ -74,6 +81,7 @@ namespace MusicBeePlugin
         [UsedImplicitly]
         public void Close(PluginCloseReason reason)
         {
+            refreshListeningStatesTimer.Dispose();
             _ = serverApi.Disconnect();
         }
 
@@ -93,6 +101,10 @@ namespace MusicBeePlugin
             {
                 case NotificationType.PluginStartup:
                     _ = serverApi.Connect();
+                    refreshListeningStatesTimer = new(_ => serverApi.UpdateListenerStates().Wait(), null, ServerApi.AutoRefreshTime, ServerApi.AutoRefreshTime);
+
+                    bool result = mbApiInterface.Library_QueryFiles("Plague Tale");
+                    bool result2 = mbApiInterface.Library_QueryFilesEx("Plague Tale", out string[] files);
                     break;
                 
                 case NotificationType.TrackChanged:
@@ -106,11 +118,11 @@ namespace MusicBeePlugin
                         switch (mbApiInterface.Player_GetPlayState())
                         {
                             case PlayState.Playing:
-                                _ = serverApi.UpdatePlayingTrack();
+                                _ = serverApi.UpdatePlayingTrack().ContinueWith(_ => form?.RefreshListenersList());
                                 break;
                             
                             case PlayState.Paused:
-                                _ = serverApi.ClearPlayingTrack();
+                                _ = serverApi.ClearPlayingTrack().ContinueWith(_ => form?.RefreshListenersList());
                                 break;
                         }
                     }
@@ -120,8 +132,8 @@ namespace MusicBeePlugin
 
         private void MenuClicked(object sender, EventArgs args)
         {
-            Form1 myForm = new(serverApi);
-            myForm.Show();
+            form ??= new(serverApi);
+            form.Show();
         }
 
         // return an array of lyric or artwork provider names this plugin supports
@@ -184,6 +196,42 @@ namespace MusicBeePlugin
             TextRenderer.DrawText(e.Graphics, "hello", SystemFonts.CaptionFont, new Point(10, 10), Color.Blue);
         }
 
+        private static string XmlFilter(string[] tags, string query, bool isStrict,
+            SearchSource source = SearchSource.None)
+        {
+            short src;
+            if (source != SearchSource.None)
+            {
+                src = (short) source;
+            }
+            else
+            {
+                var userDefaults = UserSettings.Instance.Source != SearchSource.None;
+                src = (short)
+                    (userDefaults
+                        ? UserSettings.Instance.Source
+                        : SearchSource.Library);
+            }
+
+
+            var filter = new XElement("Source",
+                new XAttribute("Type", src));
+
+            var conditions = new XElement("Conditions",
+                new XAttribute("CombineMethod", "Any"));
+            foreach (var tag in tags)
+            {
+                var condition = new XElement("Condition",
+                    new XAttribute("Field", tag),
+                    new XAttribute("Comparison", isStrict ? "Is" : "Contains"),
+                    new XAttribute("Value", query));
+                conditions.Add(condition);
+            }
+            filter.Add(conditions);
+
+            return filter.ToString();
+        }
+
         public ListeningState GetListeningState()
         {
             return new()
@@ -191,8 +239,18 @@ namespace MusicBeePlugin
                 TrackTitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle),
                 TrackAlbum = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Album),
                 TrackArtists = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artists),
+                FileUrl = mbApiInterface.NowPlaying_GetFileUrl(),
+                Position = mbApiInterface.Player_GetPosition(),
                 Time = DateTime.Now
             };
+        }
+
+        public void SetListeningState(ListeningState newState)
+        {
+            mbApiInterface.Player_SetRepeat(RepeatMode.None);
+            mbApiInterface.Player_SetShuffle(false);
+            mbApiInterface.NowPlayingList_PlayNow(newState.FileUrl);
+            mbApiInterface.Player_SetPosition(newState.Position);
         }
     }
 }

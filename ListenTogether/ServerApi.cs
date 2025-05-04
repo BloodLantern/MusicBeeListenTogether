@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Formatting;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ namespace MusicBeePlugin
     /// </summary>
     public class ServerApi
     {
-        public const string ServerEndpoint = "localhost"; // 172.27.66.211
+        public const string ServerEndpoint = "172.27.66.211"; // Will be 172.27.66.211
         public const uint ServerPort = 9696;
         public static readonly Uri ServerUri = MakeServerUri();
         public static Uri MakeServerUri(string endpoint = ServerEndpoint, uint port = ServerPort) => new($"http://{endpoint}:{port}");
@@ -25,6 +26,8 @@ namespace MusicBeePlugin
         public const string RequestListenersJoinQueue = "/listeners/joinQueue";
         public const string RequestListenersLeaveQueue = "/listeners/leaveQueue";
 
+        public const int AutoRefreshTime = 5000;
+
         private HttpClient Client { get; } = new();
         
         private Plugin Plugin { get; }
@@ -36,6 +39,10 @@ namespace MusicBeePlugin
         public bool Connected => id != Guid.Empty;
         
         public ListenerSharedState[] ListenerSharedStates;
+
+        private readonly string localUsername = Environment.UserName;
+
+        public bool InQueue { get; private set; }
         
         public ServerApi(Plugin plugin)
         {
@@ -45,7 +52,7 @@ namespace MusicBeePlugin
         }
 
         public async Task<bool> Connect()
-            => await MakeGetRequestString(RequestConnect, $"username={Environment.UserName}", result => id = Guid.Parse(result));
+            => await MakeGetRequestString(RequestConnect, $"username={localUsername}", result => id = Guid.Parse(result));
 
         public async Task<bool> Disconnect()
             => await MakePostRequest(RequestDisconnect, IdParameter, null, () => id = Guid.Empty, null, () => Client.Dispose());
@@ -59,12 +66,28 @@ namespace MusicBeePlugin
         public async Task<bool> ClearPlayingTrack() => await MakePostRequest(RequestListenersClearActivity, IdParameter);
 
         public async Task<bool> UpdateListenerStates()
-            => await MakeGetRequest<ListenerSharedState[]>(RequestListenersStates, null, result => ListenerSharedStates = result);
+        {
+            if (!await MakeGetRequest<ListenerSharedState[]>(RequestListenersStates, null, result => ListenerSharedStates = result))
+                return false;
+
+            if (!InQueue)
+                return true;
+
+            ListenerSharedState localState = ListenerSharedStates.First(s => s.Username == localUsername);
+            ListenerSharedState queueOwnerState = ListenerSharedStates.First(s => s.Username == localState.QueueOwner);
+            Plugin.SetListeningState(queueOwnerState.State);
+
+            return true;
+        }
 
         public async Task<bool> JoinListeningQueue(string username)
-            => await MakePostRequest(RequestListenersJoinQueue, $"{IdParameter}&username={username}");
+            => InQueue = await MakePostRequest(RequestListenersJoinQueue, $"{IdParameter}&username={username}");
 
-        public async Task<bool> LeaveListeningQueue() => await MakePostRequest(RequestListenersLeaveQueue, IdParameter);
+        public async Task LeaveListeningQueue()
+        {
+            InQueue = false;
+            await MakePostRequest(RequestListenersLeaveQueue, IdParameter);
+        }
 
         private async Task<bool> MakeGetRequest<T>(
             string request,

@@ -8,11 +8,11 @@ namespace MusicBeePlugin
 {
     public partial class Form1 : Form
     {
-        private readonly ServerApi serverApi;
+        private ServerApi ServerApi { get; }
 
         public Form1(ServerApi serverApi)
         {
-            this.serverApi = serverApi;
+            ServerApi = serverApi;
 
             InitializeComponent();
 
@@ -43,19 +43,17 @@ namespace MusicBeePlugin
             TreeNodeCollection rootNodes = treeView1.Nodes;
             rootNodes.Clear();
             
-            if (!await serverApi.UpdateListenerStates())
+            if (!await ServerApi.UpdateListenerStates())
                 return false;
 
-            List<ListenerSharedState> listeners = new(serverApi.ListenerSharedStates);
-            List<ListenerSharedState> queueOwners = new(serverApi.ListenerSharedStates.Where(l => l.QueueOwner == null));
-            // Remove all queueOwners from listeners
-            listeners.RemoveAll(l => queueOwners.Exists(qo => l.Username == qo.Username));
+            List<ListenerSharedState> queueOwners = new(ServerApi.ListenerSharedStates.Where(l => l.QueueOwner == null));
+            List<ListenerSharedState> listeners = new(ServerApi.ListenerSharedStates.Where(l => l.QueueOwner != null));
 
             foreach (ListenerSharedState queueOwner in queueOwners)
             {
                 string nodeText = queueOwner.Username;
                 if (!queueOwner.State.IsIdle())
-                    nodeText += $" - {queueOwner.State.TrackTitle} from {queueOwner.State.TrackAlbum} by {queueOwner.State.TrackArtists}";
+                    nodeText += $" - '{queueOwner.State.TrackTitle}' from '{queueOwner.State.TrackAlbum}' by '{queueOwner.State.TrackArtists}'";
 
                 TreeNode rootNode = rootNodes.Add(nodeText);
                 rootNode.Tag = queueOwner.Username;
@@ -67,9 +65,9 @@ namespace MusicBeePlugin
 
                     TreeNode child = rootNode.Nodes.Add(listener.Username);
                     child.Tag = listener.Username;
-                    listeners.RemoveAll(l => l.Username == listener.Username);
-                    break;
                 }
+
+                listeners.RemoveAll(l => l.QueueOwner == queueOwner.Username);
             }
 
             return true;
@@ -77,27 +75,39 @@ namespace MusicBeePlugin
 
         public void UpdateStatusText(bool connected) => label1.Text = $"Status: {(connected ? "CONNECTED" : "DISCONNECTED")}";
 
-        public async Task<bool> JoinQueue(string username) => await serverApi.JoinListeningQueue(username);
+        public async Task<bool> JoinQueue(string username)
+        {
+            if (!await ServerApi.JoinListeningQueue(username))
+                return false;
+            return await RefreshListenersList();
+        }
 
-        public async Task<bool> LeaveQueue() => await serverApi.LeaveListeningQueue();
+        public async Task LeaveQueue()
+        {
+            button4.Enabled = false;
+            await ServerApi.LeaveListeningQueue();
+            await RefreshListenersList();
+        }
 
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
 
             _ = RefreshListenersList();
+            button3.Enabled = treeView1.SelectedNode != null;
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             // Connect to the server. If it fails, leave the button like this. If it works, disable it.
-            serverApi.Connect().ContinueWith(task =>
+            ServerApi.Connect().ContinueWith(task =>
             {
                 if (!task.Result)
                     return;
                 
                 button1.Enabled = false;
                 UpdateStatusText(true);
+                RefreshListenersList().Wait();
             });
         }
 
@@ -131,6 +141,14 @@ namespace MusicBeePlugin
         private void button3_Click(object sender, EventArgs e) => _ = JoinQueue((string) treeView1.SelectedNode.Tag);
 
         private void button4_Click(object sender, EventArgs e) => _ = LeaveQueue();
+
+        private void treeView1_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            button3.Enabled = true;
+
+            // Enable/Disable button4 according to whether the user is already in a queue
+            button4.Enabled = ServerApi.InQueue;
+        }
     }
 }
 

@@ -68,4 +68,15 @@ public static class MusicListenerManager
         lock (Listeners)
             Listeners.RemoveAll(l => l.Id == id);
     }
+
+    public static ListeningQueue GetListeningQueue(string listenerUsername, bool owner)
+        => ListeningQueues.FirstOrDefault(queue => owner
+            ? queue.Owner.Username == listenerUsername
+            : queue.Listeners.Any(l => l.Username == listenerUsername));
+
+    public static void RemoveQueue(ListeningQueue queue)
+    {
+        queue.Listeners.ForEach(l => l.CurrentQueueOwner = null);
+        ListeningQueues.Remove(queue);
+    }
 }

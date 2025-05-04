@@ -11,6 +11,10 @@ namespace MusicBeePlugin
 
         public string TrackAlbum;
 
+        public string FileUrl;
+
+        public int Position;
+
         public DateTime Time;
 
         [Pure]
