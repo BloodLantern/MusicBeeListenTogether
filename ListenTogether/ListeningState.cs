@@ -11,13 +11,16 @@ namespace MusicBeePlugin
 
         public string TrackAlbum;
 
-        public string FileUrl;
-
         public int Position;
 
         public DateTime Time;
 
         [Pure]
         public bool IsIdle() => TrackTitle == null;
+
+        [Pure]
+        public bool IsDifferentTrackFrom(ListeningState otherState) => TrackTitle != otherState.TrackTitle ||
+                                                                       TrackArtists != otherState.TrackArtists ||
+                                                                       TrackAlbum != otherState.TrackAlbum;
     }
 }

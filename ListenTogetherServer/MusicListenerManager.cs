@@ -69,8 +69,8 @@ public static class MusicListenerManager
             Listeners.RemoveAll(l => l.Id == id);
     }
 
-    public static ListeningQueue GetListeningQueue(string listenerUsername, bool owner)
-        => ListeningQueues.FirstOrDefault(queue => owner
+    public static ListeningQueue GetListeningQueue(string listenerUsername, bool isOwner)
+        => ListeningQueues.FirstOrDefault(queue => isOwner
             ? queue.Owner.Username == listenerUsername
             : queue.Listeners.Any(l => l.Username == listenerUsername));
 

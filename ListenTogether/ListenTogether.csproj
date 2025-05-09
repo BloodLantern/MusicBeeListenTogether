@@ -112,6 +112,7 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="GitCommands.cs" />
     <Compile Include="ListenerSharedState.cs" />
     <Compile Include="ListeningState.cs" />
     <Compile Include="MusicBeeInterface.cs" />
