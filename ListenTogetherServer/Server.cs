@@ -1,17 +1,26 @@
 ﻿using EmbedIO;
 using EmbedIO.Actions;
 using EmbedIO.WebApi;
+using MusicBeePlugin;
 using Swan.Logging;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace ListenTogetherServer;
 
-public class Server
+public class Server : BackgroundService
 {
     private WebServer server;
 
-    public void SetupServer(string serverUri)
+    public ILogger<Server> Logger { get; }
+
+    public Server(ILogger<Server> logger)
     {
-        server = CreateWebServer(serverUri);
+        Logger = logger;
+    }
+
+    public void SetupServer()
+    {
+        server = CreateWebServer(ServerApi.MakeServerUri().ToString());
         server.RunAsync();
     }
 
@@ -31,8 +40,22 @@ public class Server
             .WithModule(new ActionModule("/", HttpVerbs.Any, ctx => ctx.SendDataAsync(new { Message = "Error" })));
 
         // Listen for state changes.
-        webServer.StateChanged += (_, e) => $"WebServer New State - {e.NewState}".Info();
+        webServer.StateChanged += (_, e) =>
+        {
+            if (Logger.IsEnabled(LogLevel.Information))
+                Logger.LogInformation("WebServer New State - {WebServerState}", e.NewState);
+        };
             
         return webServer;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        SetupServer();
+        
+        while (!stoppingToken.IsCancellationRequested)
+            await Task.Delay(1000, stoppingToken);
+        
+        StopServer();
     }
 }

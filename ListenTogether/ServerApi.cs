@@ -13,7 +13,7 @@ namespace MusicBeePlugin;
 /// </summary>
 public class ServerApi
 {
-    public const string ServerEndpoint = "localhost"; // Will be 172.27.66.211
+    public const string ServerEndpoint = "172.27.211.161"; // Will be 172.27.211.161
     public const uint ServerPort = 9696;
     public static readonly Uri ServerUri = MakeServerUri();
     public static Uri MakeServerUri(string endpoint = ServerEndpoint, uint port = ServerPort) => new($"http://{endpoint}:{port}");
@@ -58,6 +58,8 @@ public class ServerApi
     public readonly string LocalUsername = Environment.UserName;
 
     public bool InQueue { get; private set; }
+    
+    // TODO - Check regularly if the server is still running and if not, assume we're disconnected
         
     public ServerApi(Plugin plugin)
     {
