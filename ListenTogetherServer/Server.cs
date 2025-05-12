@@ -10,6 +10,7 @@ namespace ListenTogetherServer;
 public class Server : BackgroundService
 {
     private WebServer server;
+    private Timer removeInactiveUsersTimer;
 
     public ILogger<Server> Logger { get; }
 
@@ -22,10 +23,18 @@ public class Server : BackgroundService
     {
         server = CreateWebServer(ServerApi.MakeServerUri().ToString());
         server.RunAsync();
+        
+        removeInactiveUsersTimer = new(
+            _ => MusicListenerManager.RemoveInactiveListeners(),
+            null,
+            MusicListener.InactiveTime,
+            MusicListener.InactiveTime
+        );
     }
 
     public void StopServer()
     {
+        removeInactiveUsersTimer.Dispose();
         server.Dispose();
     }
 

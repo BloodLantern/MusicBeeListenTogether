@@ -5,6 +5,7 @@
       <list>
         <option value="$PROJECT_DIR$/ListenTogetherServer/bin/Release/net48/linux-arm64/publish" />
         <option value="$PROJECT_DIR$/ListenTogetherServer/bin/Release/net48/linux-x64/publish" />
+        <option value="$PROJECT_DIR$/ListenTogetherServer/bin/Release/net8.0/linux-arm64/publish" />
       </list>
     </option>
   </component>

@@ -95,7 +95,7 @@ public partial class Plugin
         switch (type)
         {
             case NotificationType.PluginStartup:
-                const string AnyFileQuery = $"""
+                const string AnyFileQuery = """
                                              <SmartPlaylist>
                                                <Source Type="1">
                                                  <Conditions CombineMethod="All">
@@ -113,10 +113,27 @@ public partial class Plugin
                 }
 
                 serverApi = new(this);
-                    
-                serverApi.OnPostConnect += () => refreshListeningStatesTimer = new(_ => serverApi.UpdateListenerStates().Wait(), null, ServerApi.AutoRefreshTime, ServerApi.AutoRefreshTime);
-                serverApi.OnPostDisconnect += () => refreshListeningStatesTimer.Dispose();
-                    
+
+                serverApi.OnPostConnect += () => refreshListeningStatesTimer = new(
+                    async void (_) =>
+                    {
+                        try
+                        {
+                            if (serverApi.Connected)
+                                await serverApi.UpdateListenerStates();
+                        }
+                        catch (Exception)
+                        {
+                            // Ignore exception
+                        }
+                    },
+                    null,
+                    ServerApi.AutoRefreshTime,
+                    ServerApi.AutoRefreshTime
+                );
+                
+                serverApi.OnPreDisconnect += () => refreshListeningStatesTimer.Dispose();
+
                 _ = serverApi.Connect();
                 break;
                 
@@ -190,12 +207,11 @@ public partial class Plugin
             mbApiInterface.Player_SetShuffle(false);
             mbApiInterface.NowPlayingList_PlayNow(files[0]);
         }
-        else
-        {
-            int newPosition = newState.Position + (int) (DateTime.Now - newState.Time).TotalMilliseconds;
-            // Only update the player position if it is offset of more than 5s
-            if (Math.Abs(mbApiInterface.Player_GetPosition() - newPosition) > 5000)
-                mbApiInterface.Player_SetPosition(newPosition);
-        }
+        
+        // TODO - For some reason this is incorrectly updated when joining a queue
+        int newPosition = newState.Position + (int) (DateTime.Now - newState.Time).TotalMilliseconds;
+        // Only update the player position if it is offset of more than 5s
+        if (Math.Abs(mbApiInterface.Player_GetPosition() - newPosition) > 5000)
+            mbApiInterface.Player_SetPosition(newPosition);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Formatting;
 using System.Threading.Tasks;
@@ -13,7 +14,11 @@ namespace MusicBeePlugin;
 /// </summary>
 public class ServerApi
 {
-    public const string ServerEndpoint = "172.27.211.161"; // Will be 172.27.211.161
+#if DEBUG
+    public const string ServerEndpoint = "localhost";
+#else
+    public const string ServerEndpoint = "172.27.211.161";
+#endif
     public const uint ServerPort = 9696;
     public static readonly Uri ServerUri = MakeServerUri();
     public static Uri MakeServerUri(string endpoint = ServerEndpoint, uint port = ServerPort) => new($"http://{endpoint}:{port}");
@@ -26,7 +31,7 @@ public class ServerApi
     public const string RequestListenersJoinQueue = "/listeners/joinQueue";
     public const string RequestListenersLeaveQueue = "/listeners/leaveQueue";
 
-    public const int AutoRefreshTime = 5000;
+    public const int AutoRefreshTime = 3000;
 
     public event Action OnPreConnect;
     public event Action OnPostConnect;
@@ -39,7 +44,7 @@ public class ServerApi
     public event Action OnPreUpdateListenerStates;
     public event Action OnPostUpdateListenerStates;
 
-    private HttpClient Client { get; } = new();
+    private HttpClient Client { get; set; }
         
     private Plugin Plugin { get; }
 
@@ -48,8 +53,8 @@ public class ServerApi
     private string IdParameter => $"id={id}";
 
     public bool Connected => id != Guid.Empty;
-        
-    public ListenerSharedState[] ListenerSharedStates { get; private set; }
+
+    public ListenerSharedState[] ListenerSharedStates { get; private set; } = [];
 
     private DateTime lastListenerSharedStatesUpdate;
 
@@ -57,15 +62,13 @@ public class ServerApi
 
     public readonly string LocalUsername = Environment.UserName;
 
+    private DateTime lastSuccessfulRequest;
+
     public bool InQueue { get; private set; }
-    
-    // TODO - Check regularly if the server is still running and if not, assume we're disconnected
         
     public ServerApi(Plugin plugin)
     {
         Plugin = plugin;
-
-        Client.BaseAddress = ServerUri;
 
         /*string localGitUsername = GitCommands.GetLocalConfigUsername();
         if (localGitUsername != null)
@@ -75,7 +78,13 @@ public class ServerApi
     public async Task<bool> Connect()
     {
         OnPreConnect?.Invoke();
-            
+
+        if (Client == null)
+        {
+            Client = new();
+            Client.BaseAddress = ServerUri;
+        }
+        
         if (!await MakeGetRequestString(RequestConnect, $"username={LocalUsername}", result => id = Guid.Parse(result)))
             return false;
 
@@ -83,15 +92,20 @@ public class ServerApi
         return true;
     }
 
-    public async Task<bool> Disconnect()
+    public async Task Disconnect()
     {
         OnPreDisconnect?.Invoke();
 
-        if (!await MakePostRequest(RequestDisconnect, IdParameter, null, () => id = Guid.Empty, null, () => Client.Dispose()))
-            return false;
+        await MakePostRequest(RequestDisconnect, IdParameter);
+        
+        id = Guid.Empty;
+        Client.Dispose();
+        Client = null;
+
+        ListenerSharedStates = [];
+        LocalSharedState = default;
 
         OnPostDisconnect?.Invoke();
-        return true;
     }
 
     public async Task<bool> UpdatePlayingTrack()
@@ -119,13 +133,16 @@ public class ServerApi
         return true;
     }
 
-    public async Task<bool> UpdateListenerStates()
+    public async Task<bool> UpdateListenerStates(bool force = false)
     {
         OnPreUpdateListenerStates?.Invoke();
             
         // Avoid sending too many requests
-        if ((DateTime.Now - lastListenerSharedStatesUpdate).TotalSeconds < AutoRefreshTime * 0.001)
+        if (!force && (DateTime.Now - lastListenerSharedStatesUpdate).TotalSeconds < AutoRefreshTime * 0.001)
+        {
+            OnPostUpdateListenerStates?.Invoke();
             return true;
+        }
 
         if (!await MakeGetRequest<ListenerSharedState[]>(RequestListenersStates, null, result => ListenerSharedStates = result))
             return false;
@@ -156,7 +173,7 @@ public class ServerApi
         if (!InQueue)
             return false;
 
-        return await UpdateListenerStates();
+        return await UpdateListenerStates(true);
     }
 
     public async Task LeaveListeningQueue()
@@ -168,6 +185,8 @@ public class ServerApi
             await ClearPlayingTrack();
         else
             await UpdatePlayingTrack();
+
+        await UpdateListenerStates(true);
     }
 
     private async Task<bool> MakeGetRequest<T>(
@@ -198,11 +217,13 @@ public class ServerApi
 
             onSuccess((await response.Content.ReadAsStringAsync()).Trim(' ', '\t', '"'));
 
+            lastSuccessfulRequest = DateTime.Now;
             return true;
         }
         catch (HttpRequestException e)
         {
             onException?.Invoke(e);
+            await CheckDisconnected();
             return false;
         }
         finally
@@ -229,17 +250,27 @@ public class ServerApi
 
             onSuccess?.Invoke();
 
+            lastSuccessfulRequest = DateTime.Now;
             return true;
         }
         catch (HttpRequestException e)
         {
             onException?.Invoke(e);
+            if (request != RequestDisconnect)
+                await CheckDisconnected();
             return false;
         }
         finally
         {
             onFinally?.Invoke();
         }
+    }
+
+    private async Task CheckDisconnected()
+    {
+        // If the last successful request was more than 10 seconds ago, assume the server can't be reached and auto-disconnect ourselves
+        if ((DateTime.Now - lastSuccessfulRequest).TotalSeconds > 10.0)
+            await Disconnect();
     }
 
     [Pure]

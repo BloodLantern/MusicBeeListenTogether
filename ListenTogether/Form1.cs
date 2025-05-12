@@ -37,8 +37,23 @@ namespace MusicBeePlugin
             
             return;
 
-            void OnServerApiOnOnPostConnect() => UpdateConnectionStatus(true);
-            void OnServerApiOnOnPostDisconnect() => UpdateConnectionStatus(false);
+            void OnServerApiOnOnPostConnect()
+            {
+                BeginInvoke(() =>
+                {
+                    UpdateConnectionStatus(true);
+                    RefreshListenersList();
+                });
+            }
+
+            void OnServerApiOnOnPostDisconnect()
+            {
+                BeginInvoke(() =>
+                {
+                    UpdateConnectionStatus(false);
+                    RefreshListenersList();
+                });
+            }
         }
 
         public void RefreshListenersListAsync() => BeginInvoke(RefreshListenersList);
@@ -96,14 +111,19 @@ namespace MusicBeePlugin
                 treeView1.SelectedNode = previousSelectedNode;
             
             UpdateJoinButton();
+            
+            Refresh();
         }
 
         public void UpdateConnectionStatus(bool connected)
         {
             label1.Text = $"Status: {(connected ? "CONNECTED" : "DISCONNECTED")}";
             
-            // Disable the Reconnect button if we're already connected
+            // Disable the Reconnect and enable the Refresh button if we're already connected
             button1.Enabled = !connected;
+            button2.Enabled = connected;
+            
+            Refresh();
         }
 
         private void UpdateJoinButton()
@@ -115,22 +135,28 @@ namespace MusicBeePlugin
                 return;
             }
 
-            string selectedNodeUser = (string) selectedNode.Tag;
+            button3.Enabled = CanJoinQueue((string) selectedNode.Tag);
+        }
+
+        private bool CanJoinQueue(string queueOwner)
+        {
             ListenerSharedState localState = ServerApi.LocalSharedState;
-            button3.Enabled = selectedNodeUser != localState.Username && selectedNodeUser != localState.QueueOwner;
+            return queueOwner != localState.Username && queueOwner != localState.QueueOwner;
         }
 
         public async Task<bool> JoinQueue(string username)
         {
-            RefreshListenersListAsync();
+            if (!CanJoinQueue(username))
+                return false;
+            
             button4.Enabled = true;
             
+            // Joining the queue will update the states
             return await ServerApi.JoinListeningQueue(username);
         }
 
         public async Task LeaveQueue()
         {
-            RefreshListenersListAsync();
             button4.Enabled = false;
             
             await ServerApi.LeaveListeningQueue();
@@ -141,7 +167,7 @@ namespace MusicBeePlugin
             // Connect to the server. If it fails, leave the button like this. If it works, disable it.
             ServerApi.Connect().ContinueWith(task =>
             {
-                if (!task.Result)
+                if (task.IsCanceled || !task.Result)
                     return;
                 
                 button1.Enabled = false;
@@ -159,6 +185,7 @@ namespace MusicBeePlugin
         {
             // Go duoQ with root node
             _ = JoinQueue((string) e.Node.Tag);
+            // FIXME - Currently we can join the queue of someone who's already in a queue
         }
 
         private void treeView1_BeforeSelect(object sender, TreeViewCancelEventArgs e)
@@ -175,7 +202,7 @@ namespace MusicBeePlugin
             treeView1.SelectedNode = parent;
         }
 
-        private void button2_Click(object sender, EventArgs e) => RefreshListenersList();
+        private void button2_Click(object sender, EventArgs e) => _ = ServerApi.UpdateListenerStates();
 
         private void button3_Click(object sender, EventArgs e) => _ = JoinQueue((string) treeView1.SelectedNode.Tag);
 
