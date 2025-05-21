@@ -22,7 +22,7 @@ namespace MusicBeePlugin
             serverApi.OnPostUpdatePlayingTrack += RefreshListenersListAsync;
             serverApi.OnPostClearPlayingTrack += RefreshListenersListAsync;
             serverApi.OnPostUpdateListenerStates += RefreshListenersListAsync;
-            
+
             // Remember to unsubscribe to the previous events
             Closed += (_, _) =>
             {
@@ -34,7 +34,7 @@ namespace MusicBeePlugin
             };
 
             _ = serverApi.UpdateListenerStates();
-            
+
             return;
 
             void OnServerApiOnOnPostConnect()
@@ -62,10 +62,10 @@ namespace MusicBeePlugin
         {
             string previousSelectedNodeUser = treeView1.SelectedNode?.Tag as string;
             treeView1.SelectedNode = null;
-            
+
             TreeNodeCollection rootNodes = treeView1.Nodes;
             rootNodes.Clear();
-            
+
             List<ListenerSharedState> queueOwners = [];
             List<ListenerSharedState> listeners = [];
             foreach (ListenerSharedState listener in ServerApi.ListenerSharedStates)
@@ -82,7 +82,11 @@ namespace MusicBeePlugin
             {
                 string nodeText = queueOwner.Username;
                 if (!queueOwner.State.IsIdle())
-                    nodeText += $" - '{queueOwner.State.TrackTitle}' from '{queueOwner.State.TrackAlbum}' by '{queueOwner.State.TrackArtists}'";
+                {
+                    nodeText += $" - '{queueOwner.State.TrackTitle}' from '{queueOwner.State.TrackAlbum}'";
+                    if (!string.IsNullOrWhiteSpace(queueOwner.State.TrackArtists))
+                        nodeText += $" by '{queueOwner.State.TrackArtists}'";
+                }
 
                 TreeNode rootNode = rootNodes.Add(nodeText);
                 rootNode.Tag = queueOwner.Username;
@@ -104,25 +108,25 @@ namespace MusicBeePlugin
 
                 listeners.RemoveAll(l => l.QueueOwner == queueOwner.Username);
             }
-            
+
             treeView1.ExpandAll();
 
             if (previousSelectedNodeUser != null)
                 treeView1.SelectedNode = previousSelectedNode;
-            
+
             UpdateJoinButton();
-            
+
             Refresh();
         }
 
         public void UpdateConnectionStatus(bool connected)
         {
             label1.Text = $"Status: {(connected ? "CONNECTED" : "DISCONNECTED")}";
-            
+
             // Disable the Reconnect and enable the Refresh button if we're already connected
             button1.Enabled = !connected;
             button2.Enabled = connected;
-            
+
             Refresh();
         }
 
@@ -148,9 +152,9 @@ namespace MusicBeePlugin
         {
             if (!CanJoinQueue(username))
                 return false;
-            
+
             button4.Enabled = true;
-            
+
             // Joining the queue will update the states
             return await ServerApi.JoinListeningQueue(username);
         }
@@ -158,7 +162,7 @@ namespace MusicBeePlugin
         public async Task LeaveQueue()
         {
             button4.Enabled = false;
-            
+
             await ServerApi.LeaveListeningQueue();
         }
 
@@ -169,7 +173,7 @@ namespace MusicBeePlugin
             {
                 if (task.IsCanceled || !task.Result)
                     return;
-                
+
                 button1.Enabled = false;
                 UpdateConnectionStatus(true);
                 RefreshListenersList();
@@ -193,10 +197,10 @@ namespace MusicBeePlugin
             // Cancel selection and instead select root node
             TreeNode node = e.Node;
             TreeNode parent = node.Parent;
-            
+
             if (parent == null)
                 return;
-            
+
             e.Cancel = true;
 
             treeView1.SelectedNode = parent;
@@ -217,4 +221,3 @@ namespace MusicBeePlugin
         }
     }
 }
-

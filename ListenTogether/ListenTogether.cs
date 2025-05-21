@@ -37,7 +37,7 @@ public partial class Plugin
 
         mbApiInterface.MB_AddMenuItem("mnuTools/Listen Together", null, ListenTogetherMenu);
         mbApiInterface.MB_AddMenuItem("mnuTools/Update Git Repository", null, UpdateGitRepository);
-            
+
         return about;
     }
 
@@ -62,7 +62,7 @@ public partial class Plugin
         }
         return false;
     }
-       
+
     // called by MusicBee when the user clicks Apply or Save in the MusicBee Preferences screen.
     // its up to you to figure out whether anything has changed and needs updating
     [UsedImplicitly]
@@ -131,17 +131,17 @@ public partial class Plugin
                     ServerApi.AutoRefreshTime,
                     ServerApi.AutoRefreshTime
                 );
-                
+
                 serverApi.OnPreDisconnect += () => refreshListeningStatesTimer.Dispose();
 
                 _ = serverApi.Connect();
                 break;
-                
+
             case NotificationType.TrackChanged:
                 if (serverApi.Connected)
                     _ = serverApi.UpdatePlayingTrack();
                 break;
-                
+
             case NotificationType.PlayStateChanged:
                 if (serverApi.Connected)
                 {
@@ -152,7 +152,7 @@ public partial class Plugin
                         case PlayState.Playing:
                             _ = serverApi.UpdatePlayingTrack();
                             break;
-                            
+
                         case PlayState.Paused:
                             _ = serverApi.ClearPlayingTrack();
                             break;
@@ -196,18 +196,18 @@ public partial class Plugin
                               </Source>
                             </SmartPlaylist>
                             """;
-                
+
             mbApiInterface.Library_QueryFilesEx(query, out string[] files);
-                
+
             if (files.Length == 0)
                 return;
-                
+
             mbApiInterface.NowPlayingList_Clear();
-            mbApiInterface.Player_SetRepeat(RepeatMode.None);
+            mbApiInterface.Player_SetRepeat(RepeatMode.None); // TODO - Reset the repeat and shuffle state after leaving the queue
             mbApiInterface.Player_SetShuffle(false);
             mbApiInterface.NowPlayingList_PlayNow(files[0]);
         }
-        
+
         // TODO - For some reason this is incorrectly updated when joining a queue
         int newPosition = newState.Position + (int) (DateTime.Now - newState.Time).TotalMilliseconds;
         // Only update the player position if it is offset of more than 5s
