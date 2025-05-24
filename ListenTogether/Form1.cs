@@ -56,7 +56,7 @@ namespace MusicBeePlugin
             }
         }
 
-        public void RefreshListenersListAsync() => BeginInvoke(RefreshListenersList);
+        public void RefreshListenersListAsync() => BeginInvoke(RefreshListenersList); // TODO - Don't update the listeners list if it didn't change
 
         public void RefreshListenersList()
         {
