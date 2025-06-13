@@ -208,6 +208,8 @@ public partial class Plugin
             mbApiInterface.NowPlayingList_PlayNow(files[0]);
         }
 
+        // FIXME - When not connected to the server, trying to pause/resume the playing song causes a strange behavior
+
         // TODO - For some reason this is incorrectly updated when joining a queue
         int newPosition = newState.Position + (int) (DateTime.Now - newState.Time).TotalMilliseconds;
         // Only update the player position if it is offset of more than 5s
