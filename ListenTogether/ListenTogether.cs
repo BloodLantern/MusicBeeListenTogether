@@ -124,7 +124,7 @@ public partial class Plugin
                         }
                         catch (Exception)
                         {
-                            // Ignore exception
+                            // We don't care if the operation fails, we still want to do it repetitively
                         }
                     },
                     null,
@@ -133,6 +133,18 @@ public partial class Plugin
                 );
 
                 serverApi.OnPreDisconnect += () => refreshListeningStatesTimer.Dispose();
+
+                serverApi.OnPreJoinListeningQueue += () =>
+                {
+                    mbApiInterface.NowPlayingList_QueryFilesEx(null, out lastPlayingList);
+                    lastRepeatState = mbApiInterface.Player_GetRepeat();
+                    lastShuffleState = mbApiInterface.Player_GetShuffle();
+                };
+
+                serverApi.OnPostLeaveListeningQueue += () =>
+                {
+                    // TODO - Reset repeat and shuffle state + queue
+                };
 
                 _ = serverApi.Connect();
                 break;
@@ -181,6 +193,10 @@ public partial class Plugin
             Time = DateTime.Now
         };
     }
+
+    private string[] lastPlayingList;
+    private RepeatMode lastRepeatState;
+    private bool lastShuffleState;
 
     public void SetListeningState(ListeningState newState)
     {

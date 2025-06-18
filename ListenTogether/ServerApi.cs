@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Formatting;
 using System.Threading.Tasks;
@@ -43,9 +42,13 @@ public class ServerApi
     public event Action OnPostClearPlayingTrack;
     public event Action OnPreUpdateListenerStates;
     public event Action OnPostUpdateListenerStates;
+    public event Action OnPreJoinListeningQueue;
+    public event Action OnPostJoinListeningQueue;
+    public event Action OnPreLeaveListeningQueue;
+    public event Action OnPostLeaveListeningQueue;
 
     private HttpClient Client { get; set; }
-        
+
     private Plugin Plugin { get; }
 
     private Guid id;
@@ -65,7 +68,7 @@ public class ServerApi
     private DateTime lastSuccessfulRequest;
 
     public bool InQueue { get; private set; }
-        
+
     public ServerApi(Plugin plugin)
     {
         Plugin = plugin;
@@ -84,7 +87,7 @@ public class ServerApi
             Client = new();
             Client.BaseAddress = ServerUri;
         }
-        
+
         if (!await MakeGetRequestString(RequestConnect, $"username={LocalUsername}", result => id = Guid.Parse(result)))
             return false;
 
@@ -97,7 +100,7 @@ public class ServerApi
         OnPreDisconnect?.Invoke();
 
         await MakePostRequest(RequestDisconnect, IdParameter);
-        
+
         id = Guid.Empty;
         Client.Dispose();
         Client = null;
@@ -111,32 +114,32 @@ public class ServerApi
     public async Task<bool> UpdatePlayingTrack()
     {
         OnPreUpdatePlayingTrack?.Invoke();
-            
+
         ObjectContent<ListeningState> content = new(Plugin.GetListeningState(), new JsonMediaTypeFormatter());
         if (!await MakePostRequest(RequestListenersUpdateActivity, IdParameter, content))
             return false;
-            
+
         OnPostUpdatePlayingTrack?.Invoke();
-            
+
         return true;
     }
 
     public async Task<bool> ClearPlayingTrack()
     {
         OnPreClearPlayingTrack?.Invoke();
-            
+
         if (!await MakePostRequest(RequestListenersClearActivity, IdParameter))
             return false;
-            
+
         OnPostClearPlayingTrack?.Invoke();
-            
+
         return true;
     }
 
     public async Task<bool> UpdateListenerStates(bool force = false)
     {
         OnPreUpdateListenerStates?.Invoke();
-            
+
         // Avoid sending too many requests
         if (!force && (DateTime.Now - lastListenerSharedStatesUpdate).TotalSeconds < AutoRefreshTime * 0.001)
         {
@@ -146,11 +149,11 @@ public class ServerApi
 
         if (!await MakeGetRequest<ListenerSharedState[]>(RequestListenersStates, null, result => ListenerSharedStates = result))
             return false;
-            
+
         lastListenerSharedStatesUpdate = DateTime.Now;
 
         LocalSharedState = ListenerSharedStates.First(s => s.Username == LocalUsername);
-            
+
         if (!InQueue)
         {
             OnPostUpdateListenerStates?.Invoke();
@@ -168,23 +171,31 @@ public class ServerApi
 
     public async Task<bool> JoinListeningQueue(string username)
     {
+        OnPreJoinListeningQueue?.Invoke();
+
         InQueue = await MakePostRequest(RequestListenersJoinQueue, $"{IdParameter}&username={username}");
-            
+
         if (!InQueue)
             return false;
+
+        OnPostJoinListeningQueue?.Invoke();
 
         return await UpdateListenerStates(true);
     }
 
     public async Task LeaveListeningQueue()
     {
+        OnPreLeaveListeningQueue?.Invoke();
+
         InQueue = false;
         await MakePostRequest(RequestListenersLeaveQueue, IdParameter);
-            
+
         if (Plugin.GetListeningState().IsIdle())
             await ClearPlayingTrack();
         else
             await UpdatePlayingTrack();
+
+        OnPostLeaveListeningQueue?.Invoke();
 
         await UpdateListenerStates(true);
     }
