@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Security;
 using System.Windows.Forms;
 using JetBrains.Annotations;
 using Timer = System.Threading.Timer;
@@ -143,7 +145,10 @@ public partial class Plugin
 
                 serverApi.OnPostLeaveListeningQueue += () =>
                 {
-                    // TODO - Reset repeat and shuffle state + queue
+                    mbApiInterface.NowPlayingList_Clear();
+                    mbApiInterface.NowPlayingList_QueueFilesNext(lastPlayingList);
+                    mbApiInterface.Player_SetRepeat(lastRepeatState);
+                    mbApiInterface.Player_SetShuffle(lastShuffleState);
                 };
 
                 _ = serverApi.Connect();
@@ -206,8 +211,8 @@ public partial class Plugin
                             <SmartPlaylist>
                               <Source Type="1">
                                 <Conditions CombineMethod="All">
-                                  <Condition Field="Title" Comparison="Is" Value="{newState.TrackTitle}" />
-                                  <Condition Field="Album" Comparison="Is" Value="{newState.TrackAlbum}" />
+                                  <Condition Field="Title" Comparison="Is" Value="{SecurityElement.Escape(newState.TrackTitle)}" />
+                                  <Condition Field="Album" Comparison="Is" Value="{SecurityElement.Escape(newState.TrackAlbum)}" />
                                 </Conditions>
                               </Source>
                             </SmartPlaylist>
@@ -219,12 +224,10 @@ public partial class Plugin
                 return;
 
             mbApiInterface.NowPlayingList_Clear();
-            mbApiInterface.Player_SetRepeat(RepeatMode.None); // TODO - Reset the repeat and shuffle state after leaving the queue
+            mbApiInterface.Player_SetRepeat(RepeatMode.None);
             mbApiInterface.Player_SetShuffle(false);
-            mbApiInterface.NowPlayingList_PlayNow(files[0]);
+            mbApiInterface.NowPlayingList_PlayNow(files.First());
         }
-
-        // FIXME - When not connected to the server, trying to pause/resume the playing song causes a strange behavior
 
         // TODO - For some reason this is incorrectly updated when joining a queue
         int newPosition = newState.Position + (int) (DateTime.Now - newState.Time).TotalMilliseconds;

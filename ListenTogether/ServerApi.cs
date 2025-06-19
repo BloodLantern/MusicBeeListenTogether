@@ -113,6 +113,9 @@ public class ServerApi
 
     public async Task<bool> UpdatePlayingTrack()
     {
+        if (!Connected)
+            return false;
+
         OnPreUpdatePlayingTrack?.Invoke();
 
         ObjectContent<ListeningState> content = new(Plugin.GetListeningState(), new JsonMediaTypeFormatter());
@@ -126,6 +129,9 @@ public class ServerApi
 
     public async Task<bool> ClearPlayingTrack()
     {
+        if (!Connected)
+            return false;
+
         OnPreClearPlayingTrack?.Invoke();
 
         if (!await MakePostRequest(RequestListenersClearActivity, IdParameter))
@@ -138,6 +144,9 @@ public class ServerApi
 
     public async Task<bool> UpdateListenerStates(bool force = false)
     {
+        if (!Connected)
+            return false;
+
         OnPreUpdateListenerStates?.Invoke();
 
         // Avoid sending too many requests
@@ -171,6 +180,9 @@ public class ServerApi
 
     public async Task<bool> JoinListeningQueue(string username)
     {
+        if (!Connected)
+            return false;
+
         OnPreJoinListeningQueue?.Invoke();
 
         InQueue = await MakePostRequest(RequestListenersJoinQueue, $"{IdParameter}&username={username}");
@@ -185,6 +197,9 @@ public class ServerApi
 
     public async Task LeaveListeningQueue()
     {
+        if (!Connected)
+            return;
+
         OnPreLeaveListeningQueue?.Invoke();
 
         InQueue = false;
