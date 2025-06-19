@@ -18,6 +18,10 @@ public partial class Plugin
 
     private Timer refreshListeningStatesTimer;
 
+    private string[] lastPlayingList;
+    private RepeatMode lastRepeatState;
+    private bool lastShuffleState;
+
     [UsedImplicitly]
     public PluginInfo Initialise(IntPtr apiInterfacePtr)
     {
@@ -199,40 +203,43 @@ public partial class Plugin
         };
     }
 
-    private string[] lastPlayingList;
-    private RepeatMode lastRepeatState;
-    private bool lastShuffleState;
+    private void UpdatePlayerPosition(ListeningState targetState, bool checkOffset)
+    {
+        int targetPosition = targetState.Position + (int) (DateTime.Now - targetState.Time).TotalMilliseconds;
+        // Only update the player position if it is offset of more than 5s
+        if (!checkOffset || Math.Abs(mbApiInterface.Player_GetPosition() - targetPosition) > 5000)
+            mbApiInterface.Player_SetPosition(targetPosition);
+    }
 
     public void SetListeningState(ListeningState newState)
     {
-        if (serverApi.LocalSharedState.State.IsDifferentTrackFrom(newState))
+        if (!serverApi.LocalSharedState.State.IsDifferentTrackFrom(newState))
         {
-            string query = $"""
-                            <SmartPlaylist>
-                              <Source Type="1">
-                                <Conditions CombineMethod="All">
-                                  <Condition Field="Title" Comparison="Is" Value="{SecurityElement.Escape(newState.TrackTitle)}" />
-                                  <Condition Field="Album" Comparison="Is" Value="{SecurityElement.Escape(newState.TrackAlbum)}" />
-                                </Conditions>
-                              </Source>
-                            </SmartPlaylist>
-                            """;
-
-            mbApiInterface.Library_QueryFilesEx(query, out string[] files);
-
-            if (files.Length == 0)
-                return;
-
-            mbApiInterface.NowPlayingList_Clear();
-            mbApiInterface.Player_SetRepeat(RepeatMode.None);
-            mbApiInterface.Player_SetShuffle(false);
-            mbApiInterface.NowPlayingList_PlayNow(files.First());
+            UpdatePlayerPosition(newState, true);
+            return;
         }
 
-        // TODO - For some reason this is incorrectly updated when joining a queue
-        int newPosition = newState.Position + (int) (DateTime.Now - newState.Time).TotalMilliseconds;
-        // Only update the player position if it is offset of more than 5s
-        if (Math.Abs(mbApiInterface.Player_GetPosition() - newPosition) > 5000)
-            mbApiInterface.Player_SetPosition(newPosition);
+        string query = $"""
+                        <SmartPlaylist>
+                          <Source Type="1">
+                            <Conditions CombineMethod="All">
+                              <Condition Field="Title" Comparison="Is" Value="{SecurityElement.Escape(newState.TrackTitle)}" />
+                              <Condition Field="Album" Comparison="Is" Value="{SecurityElement.Escape(newState.TrackAlbum)}" />
+                            </Conditions>
+                          </Source>
+                        </SmartPlaylist>
+                        """;
+
+        mbApiInterface.Library_QueryFilesEx(query, out string[] files);
+
+        if (files.Length == 0)
+            return;
+
+        mbApiInterface.NowPlayingList_Clear();
+        mbApiInterface.Player_SetRepeat(RepeatMode.None);
+        mbApiInterface.Player_SetShuffle(false);
+        mbApiInterface.NowPlayingList_PlayNow(files.First());
+
+        UpdatePlayerPosition(newState, false);
     }
 }
