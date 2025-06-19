@@ -104,9 +104,6 @@ public partial class Plugin
                 const string AnyFileQuery = """
                                              <SmartPlaylist>
                                                <Source Type="1">
-                                                 <Conditions CombineMethod="All">
-                                                   <Condition Field="Title" Comparison="IsNotNull" />
-                                                 </Conditions>
                                                  <Limit FilterDuplicates="False" Enabled="True" Count="1" Type="Items" SelectedBy="Random" />
                                                </Source>
                                              </SmartPlaylist>
