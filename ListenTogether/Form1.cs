@@ -60,7 +60,7 @@ namespace MusicBeePlugin
 
         private bool ShouldRefreshListenersList()
         {
-            if (LastListenerSharedStates.Length != ServerApi.ListenerSharedStates.Length)
+            if (LastListenerSharedStates?.Length != ServerApi.ListenerSharedStates.Length)
                 return true;
 
             bool different = false;
