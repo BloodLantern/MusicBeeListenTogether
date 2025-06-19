@@ -9,6 +9,8 @@ namespace MusicBeePlugin
     {
         private ServerApi ServerApi { get; }
 
+        private ListenerSharedState[] LastListenerSharedStates { get; set; }
+
         public Form1(ServerApi serverApi)
         {
             ServerApi = serverApi;
@@ -56,10 +58,42 @@ namespace MusicBeePlugin
             }
         }
 
-        public void RefreshListenersListAsync() => BeginInvoke(RefreshListenersList); // TODO - Don't update the listeners list if it didn't change
+        private bool ShouldRefreshListenersList()
+        {
+            if (LastListenerSharedStates.Length != ServerApi.ListenerSharedStates.Length)
+                return true;
+
+            bool different = false;
+
+            for (int i = 0; i < LastListenerSharedStates.Length; i++)
+            {
+                ListenerSharedState lastState = LastListenerSharedStates[i];
+                ListenerSharedState currentState = ServerApi.ListenerSharedStates[i];
+                if (lastState.Username == currentState.Username &&
+                    lastState.QueueOwner == currentState.QueueOwner &&
+                    lastState.State.TrackTitle == currentState.State.TrackTitle &&
+                    lastState.State.TrackAlbum == currentState.State.TrackAlbum &&
+                    lastState.State.TrackArtists == currentState.State.TrackArtists)
+                {
+                    continue;
+                }
+
+                different = true;
+                break;
+            }
+
+            return different;
+        }
+
+        public void RefreshListenersListAsync() => BeginInvoke(RefreshListenersList);
 
         public void RefreshListenersList()
         {
+            if (!ShouldRefreshListenersList())
+                return;
+
+            LastListenerSharedStates = (ListenerSharedState[]) ServerApi.ListenerSharedStates.Clone();
+
             string previousSelectedNodeUser = treeView1.SelectedNode?.Tag as string;
             treeView1.SelectedNode = null;
 
